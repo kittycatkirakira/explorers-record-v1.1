@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>探索者の記録 v1.4</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+#app{max-width:760px;margin:auto;min-height:100vh;background:#172033}.top{padding:16px;background:#0f172a;position:sticky;top:0;border-bottom:1px solid #334155;z-index:3}
+.top h1{margin:0;font-size:22px}.sub,.small{font-size:12px;color:#94a3b8}.main{padding:14px 14px 90px}.card{background:#202c42;border:1px solid #334155;border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.stat{background:#0f172a;border-radius:8px;padding:7px;font-size:11px}.stat b{display:block;font-size:14px;margin-top:2px}
+button,input,select{font:inherit}button{border:0;border-radius:10px;padding:11px 13px;color:#fff;background:#475569;font-weight:700}button.primary{background:#2563eb}button.warn{background:#92400e}button.danger{background:#991b1b}button:disabled{opacity:.45}
+input,select{width:100%;padding:10px;margin-top:5px;border:1px solid #475569;border-radius:9px;background:#0f172a;color:#fff}label{display:block;font-size:12px;color:#cbd5e1;margin:9px 0}
+.badge{display:inline-block;background:#334155;border-radius:999px;padding:3px 7px;font-size:11px;margin:2px}.log{background:#0b1020;border-radius:10px;padding:10px;line-height:1.6;font-size:12px;max-height:360px;overflow:auto}.loot{color:#fde68a}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#0f172a;border-top:1px solid #334155;display:flex;z-index:4}.tabs button{flex:1;border-radius:0;background:transparent;padding:12px 3px;font-size:12px}.tabs button.active{background:#1d4ed8}
+.bar{height:8px;background:#0f172a;border-radius:8px;overflow:hidden;margin:7px 0}.bar i{display:block;height:100%;background:#64748b}.timer{font-size:20px;font-weight:800}.event{padding:10px;border-left:3px solid #64748b;background:#111827;margin-top:7px;border-radius:7px}.dangerEvent{border-left-color:#b91c1c}.good{border-left-color:#15803d}.rare{border-left-color:#b45309}
+.choice{border:1px solid #475569;border-radius:12px;padding:12px;margin-top:9px;background:#111827}.choice.selected{border-color:#60a5fa;background:#172554}.choice h3{margin:0 0 5px;font-size:16px}.choice p{margin:5px 0}.skill{display:inline-block;border:1px solid #64748b;border-radius:999px;padding:4px 8px;font-size:11px;margin-top:4px;color:#e2e8f0}.steps{display:flex;gap:5px;margin-bottom:12px}.steps span{flex:1;text-align:center;padding:7px 4px;border-radius:8px;background:#0f172a;color:#64748b;font-size:11px}.steps span.active{background:#1d4ed8;color:#fff}.memberActions{display:flex;gap:7px;margin-top:10px}.memberActions button{flex:1}
+</style>
+</head>
+<body><div id="app">
+<header class="top"><div class="row"><div><h1>探索者の記録</h1><div class="sub">魔素暦300年 — 商業都市・探索院</div></div><div class="badge"><span id="goldTop">1,000 G</span></div></div></header>
+<main id="main" class="main"></main>
+<nav class="tabs">
+<button id="t-home" onclick="view('home')">🏙️ 都市</button>
+<button id="t-char" onclick="view('char')">🏛️ 探索院</button>
+<button id="t-party" onclick="view('party')">👥 編成</button>
+<button id="t-explore" onclick="view('explore')">🗺️ 探索</button>
+<button id="t-record" onclick="view('record')">📖 記録</button>
+</nav></div>
+<script>
+const R=["人間","フェルナ族","エルナ族","ザルガ族","ネアリス族"],J=["戦士","狩人","術士","祈祷師"];
+const raceInfo={
+"人間":{feature:"能力の偏りが少なく、どの職業にも適応しやすい。",skill:"適応力",skillDesc:"全能力をわずかに底上げし、苦手な状況でも安定して戦える。"},
+"フェルナ族":{feature:"素早さ・命中・回避に優れ、弓を得意とする種族。",skill:"風読み",skillDesc:"回避率が上がり、先手を取りやすい。"},
+"エルナ族":{feature:"魔力・精神に優れ、杖を得意とする魔法型の種族。",skill:"魔素共鳴",skillDesc:"魔法攻撃と回復効果が強化される。"},
+"ザルガ族":{feature:"高い生命力と攻撃力を持つ、力に秀でた竜族。",skill:"竜脈",skillDesc:"最大HPと防御力が高まり、強敵との長期戦に強い。"},
+"ネアリス族":{feature:"水域での探索に適し、MP・精神に優れる水棲系の種族。",skill:"水界適応",skillDesc:"水域で能力が上昇し、回復を受けたときの効果も高い。"}
+};
+const jobInfo={
+"戦士":{feature:"高い攻撃力と防御力を持つ前衛。敵の攻撃を受け止めるのが得意。",skill:"挑発",skillDesc:"敵の注意を引き付け、味方を守る前衛向けの固有スキル。"},
+"狩人":{feature:"速度・命中・回避に優れる遠距離型。安定した単体攻撃が得意。",skill:"精密射撃",skillDesc:"命中率が高く、弱点を突いたときのダメージが上がる。"},
+"術士":{feature:"高い魔力で属性攻撃を行う後衛。弱点を突くほど強力。",skill:"魔導詠唱",skillDesc:"属性攻撃の威力を高め、敵の弱点を狙いやすくする。"},
+"祈祷師":{feature:"回復と支援を担当する後衛。戦闘不能からの立て直しにも強い。",skill:"癒しの祈り",skillDesc:"味方を回復し、戦闘不能者が出たときの立て直しを支える。"}
+};
+const S=["HP","MP","攻撃","防御","魔力","精神","速度","命中","回避","運"];
+const AREAS=[
+{name:"始まりの地",rec:1,floors:5,sec:10,clear:50,repeat:30,m:["野犬","小鬼","草原兎"],attr:["地","無","風"],boss:["始原の獣","地",190],rates:[.15,.10,.02]},
+{name:"森林",rec:4,floors:10,sec:30,clear:300,repeat:180,m:["森狼","毒蛇","人喰い草"],attr:["風","水","地"],boss:["森王","地",420],rates:[.20,.08,.02]},
+{name:"山岳",rec:8,floors:12,sec:45,clear:540,repeat:360,m:["山犬","岩蟲","狂戦鬼"],attr:["地","地","火"],boss:["山岳王","地",720],rates:[.25,.07,.03]},
+{name:"洞窟",rec:12,floors:15,sec:60,clear:900,repeat:600,m:["洞窟鼠","地底蛇","闇蝙蝠"],attr:["闇","地","闇"],boss:["深層魔獣","闇",1050],rates:[.30,.06,.03]},
+{name:"水域",rec:18,floors:12,sec:90,clear:1080,repeat:720,m:["水棲獣","大蛙","水蛇"],attr:["水","水","水"],boss:["水域主","水",1500],rates:[.32,.055,.035]},
+{name:"遺跡",rec:25,floors:20,sec:120,clear:2400,repeat:1500,m:["遺跡兵","呪像","古代獣"],attr:["無","闇","地"],boss:["遺跡守護者","闇",2600],rates:[.34,.05,.04]},
+{name:"竜域",rec:35,floors:25,sec:180,clear:4500,repeat:2700,m:["竜鱗獣","飛竜","魔竜"],attr:["火","風","闇"],boss:["古竜","火",5200],rates:[.35,.05,.05]}
+];
+const base={HP:100,MP:30,攻撃:18,防御:12,魔力:12,精神:12,速度:10,命中:80,回避:10,運:10};
+let state={gold:1000,chars:[],parties:[[],[],[],[]],expedition:null,cleared:{},log:[],reg:{step:0,name:"",race:null,job:null}};
+function esc(x){return String(x).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function save(){localStorage.er13=JSON.stringify(state)}
+function load(){try{let x=JSON.parse(localStorage.er13);if(x)state=Object.assign(state,x)}catch(e){try{let x=JSON.parse(localStorage.er12);if(x)state=Object.assign(state,x);save()}catch(e2){try{let x=JSON.parse(localStorage.er11);if(x)state=Object.assign(state,x);save()}catch(e3){}}}}
+function mods(r,j){
+ const rm={人間:[5,2,2,2,2,2,2,0,0,2],フェルナ族:[0,0,2,0,1,1,6,8,8,3],エルナ族:[-5,5,-2,0,6,7,4,4,4,5],ザルガ族:[25,-2,7,7,-2,1,-2,0,-2,1],ネアリス族:[0,10,-2,1,4,6,2,2,3,3]}[r];
+ const jm={戦士:[25,-5,7,6,-4,1,-2,0,-1,0],狩人:[5,0,4,0,0,0,7,8,6,2],術士:[-5,15,-3,-1,9,6,1,2,1,2],祈祷師:[0,20,-4,1,5,9,0,1,0,5]}[j];
+ let s={...base};S.forEach((k,i)=>s[k]+=rm[i]+jm[i]);return s
+}
+function needXp(lv){return 100+25*(lv-1)*(lv-1)}
+function grow(c){
+ const g={人間:[10,4,2,1,1,1,1,0,0,1],フェルナ族:[6,2,3,1,1,1,3,1,2,1],エルナ族:[4,5,1,0,3,3,2,1,1,1],ザルガ族:[18,1,4,3,0,1,0,0,0,0],ネアリス族:[5,7,0,1,3,4,1,1,1,2]}[c.race];
+ const j={戦士:[8,-2,3,2,-1,0,0,0,0,0],狩人:[3,0,2,0,0,0,3,1,2,1],術士:[1,4,-1,0,3,2,0,0,0,0],祈祷師:[2,5,-1,0,1,3,0,0,0,2]}[c.job];S.forEach((k,i)=>c.stats[k]+=g[i]+j[i])
+}
+function addXp(c,x,L){c.xp+=x;while(c.xp>=needXp(c.level)){c.xp-=needXp(c.level);c.level++;grow(c);L.push(`${c.name}はLv.${c.level}になった！`)}}
+function startRegistration(){if(state.chars.length>=40)return alert("登録できる仲間は最大40人です。");state.reg={step:1,name:"",race:null,job:null};chars()}
+function selectRace(r){state.reg.race=r;state.reg.step=3;save();chars()}
+function selectJob(j){state.reg.job=j;state.reg.step=3;save();chars()}
+function backReg(){if(state.reg.step===3)state.reg.step=2;else if(state.reg.step===2)state.reg.step=1;else state.reg.step=0;save();chars()}
+function cancelReg(){state.reg={step:0,name:"",race:null,job:null};save();chars()}
+function finalizeRegistration(){
+ let n=document.getElementById("regName")?.value.trim()||state.reg.name.trim()||"名無し";state.reg.name=n;
+ if(!state.reg.race||!state.reg.job)return;
+ let c={id:Date.now()+Math.random(),name:n,race:state.reg.race,job:state.reg.job,level:1,xp:0,tactic:"標準",stats:mods(state.reg.race,state.reg.job),weapon:{name:"初期武器",rarity:1,atk:0,enhance:0},raceSkill:raceInfo[state.reg.race].skill,jobSkill:jobInfo[state.reg.job].skill};
+ state.chars.push(c);state.log.unshift(`「${n}」を探索者として登録しました。`);state.reg={step:0,name:"",race:null,job:null};save();chars()
+}
+function deleteChar(id){
+ let c=state.chars.find(x=>x.id==id);if(!c)return;
+ if(state.parties.some(p=>p.includes(id)))return alert("この探索者はパーティーに編成されています。先に編成から外してください。");
+ if(!confirm(`「${c.name}」を登録名簿から削除しますか？`))return;
+ state.chars=state.chars.filter(x=>x.id!=id);state.log.unshift(`「${c.name}」を登録名簿から削除しました。`);save();chars()
+}
+function tactic(id,v){let c=state.chars.find(x=>x.id==id);if(c)c.tactic=v;save()}
+function chars(){
+ if(state.reg.step===0){
+  let x=`<h2>探索院</h2><div class=card><div class=row><b>探索者登録</b><span class=badge>${state.chars.length}/40人</span></div><p class=small>探索院では探索者の登録・確認・削除を行います。登録は「名前 → 種族 → 職業」の順に進みます。</p><button class=primary onclick="startRegistration()">探索者登録を開始</button></div>`;
+  if(!state.chars.length)x+=`<div class=card><b>登録名簿</b><p class=small>まだ探索者は登録されていません。</p></div>`;
+  state.chars.forEach(c=>x+=memberCard(c));
+  main.innerHTML=x;return
+ }
+ if(state.reg.step===1){
+  let x=`<h2>探索者登録</h2>${stepBar(1)}<div class=card><b>名前を決める</b><label>探索者名<input id=regName maxlength=12 value="${esc(state.reg.name)}" placeholder="例：カイル" oninput="state.reg.name=this.value"></label><p class=small>次に種族を選択します。</p><button class=primary onclick="state.reg.name=document.getElementById('regName').value.trim();state.reg.step=2;save();chars()">次へ：種族を選ぶ</button><button style="margin-left:6px" onclick="cancelReg()">キャンセル</button></div>`;main.innerHTML=x;return
+ }
+ if(state.reg.step===2){
+  let x=`<h2>探索者登録</h2>${stepBar(2)}<div class=card><b>種族を選択</b><p class=small>種族ごとに成長傾向と固有スキルが異なります。</p>`;
+  R.forEach(r=>{let q=raceInfo[r];x+=`<div class="choice ${state.reg.race===r?'selected':''}" onclick="selectRace('${r}')"><h3>${r}</h3><p>${q.feature}</p><span class=skill>固有スキル：${q.skill}</span><p class=small>${q.skillDesc}</p></div>`});
+  x+=`<div style="margin-top:10px"><button onclick="backReg()">← 戻る</button><button style="margin-left:6px" onclick="cancelReg()">キャンセル</button></div></div>`;main.innerHTML=x;return
+ }
+ let r=state.reg.race,j=state.reg.job;
+ if(!j){
+  let x=`<h2>探索者登録</h2>${stepBar(3)}<div class=card><b>職業を選択</b><p class=small>職業ごとに戦い方と固有スキルが異なります。</p>`;
+  J.forEach(z=>{let q=jobInfo[z];x+=`<div class="choice" onclick="selectJob('${z}')"><h3>${z}</h3><p>${q.feature}</p><span class=skill>固有スキル：${q.skill}</span><p class=small>${q.skillDesc}</p></div>`});
+  x+=`<div style="margin-top:10px"><button onclick="backReg()">← 種族へ戻る</button><button style="margin-left:6px" onclick="cancelReg()">キャンセル</button></div></div>`;main.innerHTML=x;return
+ }
+ let x=`<h2>探索者登録</h2>${stepBar(3)}<div class=card><b>登録内容の確認</b><div class=event><div>名前：<b>${esc(state.reg.name||"名無し")}</b></div><div>種族：${r}</div><div>職業：${j}</div><div>種族固有スキル：${raceInfo[r].skill}</div><div>職業固有スキル：${jobInfo[j].skill}</div></div><p class=small>この内容で登録すると、探索院の名簿に追加されます。</p><button class=primary onclick="finalizeRegistration()">この探索者を登録する</button><button style="margin-left:6px" onclick="backReg()">← 職業を選び直す</button><button style="margin-left:6px" onclick="cancelReg()">キャンセル</button></div>`;main.innerHTML=x
+}
+function stepBar(n){return `<div class=steps><span class=${n>=1?'active':''}>① 名前</span><span class=${n>=2?'active':''}>② 種族</span><span class=${n>=3?'active':''}>③ 職業</span></div>`}
+function memberCard(c){return `<div class=card><div class=row><b>${esc(c.name)}</b><span><span class=badge>${c.race}</span><span class=badge>${c.job}</span></span></div><div class=small>Lv.${c.level}　経験値 ${c.xp}/${needXp(c.level)}</div><div class=small>固有スキル：${esc(c.raceSkill||raceInfo[c.race]?.skill||'—')} / ${esc(c.jobSkill||jobInfo[c.job]?.skill||'—')}</div><div class=stats>${S.map(k=>`<div class=stat>${k}<b>${c.stats[k]}</b></div>`).join("")}</div><label>個人作戦<select onchange="tactic(${c.id},this.value)">${["標準","攻撃重視","防御重視","安全重視","弱点重視"].map(y=>`<option ${c.tactic==y?"selected":""}>${y}</option>`).join("")}</select></label><div class=memberActions><button class=danger onclick="deleteChar(${c.id})">この探索者を削除</button></div></div>`}
+function party(){
+ let x=`<h2>パーティー編成</h2><div class=card><div class=small>最大4パーティー / 1パーティー最大6人。チェックした順番が隊列になります。並び替えは「↑」「↓」で変更できます。</div>`;
+ for(let p=0;p<4;p++){x+=`<div class=event><b>第${p+1}パーティー</b><div class=small>現在 ${state.parties[p].length}/6人</div>`;
+  state.parties[p].forEach((id,i)=>{let c=state.chars.find(x=>x.id==id);if(!c)return;x+=`<div class=choice><div class=row><b>${i+1}. ${esc(c.name)}</b><span class=badge>${c.race} / ${c.job} / Lv.${c.level}</span></div><div class=memberActions><button onclick="moveMember(${p},${i},-1)" ${i===0?'disabled':''}>↑ 上へ</button><button onclick="moveMember(${p},${i},1)" ${i===state.parties[p].length-1?'disabled':''}>↓ 下へ</button><button class=danger onclick="removeMember(${p},${c.id})">外す</button></div></div>`});
+  let available=state.chars.filter(c=>!state.parties[p].includes(c.id));
+  available.forEach(c=>{let inOther=state.parties.some((q,qi)=>qi!==p&&q.includes(c.id));x+=`<label><input type=checkbox style="width:auto" ${inOther?'disabled':''} onchange="toggle(${p},${c.id})"> ${esc(c.name)}（${c.race} / ${c.job} / Lv.${c.level}）</label>`});
+  x+=`</div>`
+ }
+ x+=`</div>`;main.innerHTML=x
+}
+function toggle(p,id){let q=state.parties[p];if(q.includes(id))state.parties[p]=q.filter(x=>x!=id);else if(q.length<6)q.push(id);else return alert("1パーティーは最大6人です。");save();party()}
+function removeMember(p,id){state.parties[p]=state.parties[p].filter(x=>x!=id);save();party()}
+function moveMember(p,i,d){let q=state.parties[p],j=i+d;if(j<0||j>=q.length)return;[q[i],q[j]]=[q[j],q[i]];save();party()}
+function eff(a,d){let p={"火":"氷","氷":"風","風":"水","水":"火","光":"闇","闇":"光"};if(p[a]===d)return 1.5;if(p[d]===a)return .75;return 1}
+function rarity(){let r=Math.random();return r<.0002?5:r<.002?4:r<.012?3:r<.05?2:1}
+function enemyParty(a,floor,boss=false){if(boss)return [{name:a.boss[0],attr:a.boss[1],hp:Math.floor(a.boss[2]*(1+floor*.08)),maxHp:Math.floor(a.boss[2]*(1+floor*.08)),lv:a.rec+floor}];let n=1+Math.floor(Math.random()*Math.min(5,2+Math.floor(floor/3))),arr=[];for(let i=0;i<n;i++){let k=Math.floor(Math.random()*a.m.length),lv=Math.max(1,a.rec+floor+Math.floor(Math.random()*3)-2),baseHp=30+a.rec*5+floor*9;let hp=Math.floor(baseHp*(.85+Math.random()*.4));arr.push({name:a.m[k],attr:a.attr[k],hp,maxHp:hp,lv})}return arr}
+function chooseTarget(arr){let q=arr.filter(e=>e.hp>0);return q[Math.floor(Math.random()*q.length)]}
+function battle(team,enemies,a,floor){let L=[`⚔️ 第${floor}階層：敵パーティーと遭遇！`,`敵：${enemies.map(e=>`${e.name} Lv.${e.lv}`).join(" / ")}`],turn=0;let live=team.map(c=>({c,hp:c.stats.HP}));while(turn<20&&enemies.some(e=>e.hp>0)&&live.some(x=>x.hp>0)){turn++;L.push(`―― 第${turn}ターン ――`);let order=live.filter(x=>x.hp>0).map(x=>x.c).sort((u,v)=>v.stats.速度-u.stats.速度);for(let c of order){if(!enemies.some(e=>e.hp>0))break;let e=chooseTarget(enemies),at=c.job==="術士"?"火":c.job==="祈祷師"?"光":"無";let hit=Math.random()<=Math.min(.98,c.stats.命中/100),evade=Math.random()<evasion(e);if(!hit){L.push(`${c.name}の攻撃！ → ${e.name}に当たらなかった。`);continue}if(evade){L.push(`${c.name}の攻撃！ → ${e.name}は回避した！`);continue}let d=Math.max(1,Math.floor((c.stats.攻撃+c.weapon.atk+c.weapon.enhance*2)*(c.job==="術士"?1.25:1)*eff(at,e.attr)*(0.8+Math.random()*.4)-e.lv*1.5));let crit=Math.random()<Math.min(.25,c.stats.運/500);if(crit){d=Math.floor(d*1.5);L.push(`${c.name}の攻撃！ 会心の一撃！ → ${e.name}に${d}ダメージ！`)}else L.push(`${c.name}の攻撃！ → ${e.name}に${d}ダメージ！`);e.hp-=d;if(e.hp<=0)L.push(`${e.name}を撃破！`)}for(let e of enemies.filter(e=>e.hp>0)){let q=live.filter(x=>x.hp>0);let t=q[Math.floor(Math.random()*q.length)];if(!t)break;let hit=Math.random()<.84,ev=Math.random()<t.c.stats.回避/200;if(!hit){L.push(`${e.name}の攻撃！ → ${t.c.name}は攻撃をかわした。`);continue}if(ev){L.push(`${e.name}の攻撃！ → ${t.c.name}は回避した！`);continue}let d=Math.max(1,Math.floor((10+e.lv*3)*(0.8+Math.random()*.4)-t.c.stats.防御*.35));t.hp-=d;L.push(`${e.name}の攻撃！ → ${t.c.name}に${d}ダメージ！`);if(t.hp<=0)L.push(`${t.c.name}は戦闘不能！`)}}
+ let win=!enemies.some(e=>e.hp>0),xp=0,g=0;if(win){enemies.forEach(e=>xp+=Math.floor(18+e.lv*7));g=Math.floor(10+xp*.7);L.push(`敵パーティーを撃破！（${turn}ターン）`)}else{xp=Math.floor(8+floor*2);g=Math.floor(5+floor*2);L.push(`20ターン経過。決着せず、逃走帰還。`)}team.forEach(c=>addXp(c,xp,L));state.gold+=g;if(win&&Math.random()<.20){let r=rarity(),owner=team[Math.floor(Math.random()*team.length)],item={name:["","鉄","鋼","魔導","精霊","神秘"][r]+"の装備",rarity:r,atk:3*r+Math.floor(Math.random()*7),enhance:0};L.push(`🎁 装備獲得：${item.name} ★${r}（攻撃+${item.atk}）`);if(item.atk>owner.weapon.atk){owner.weapon=item;L.push(`${owner.name}が装備しました。`)}}L.push(`獲得経験値：${xp} / ゴールド：${g} G`);return{L,win}}
+function evasion(e){return .05}
+function eventAt(exp){let a=AREAS[exp.area],r=Math.random(),[enemyR,chestR,specialR]=a.rates;
+ const final=exp.floor===a.floors&&exp.segment===5;
+ const first=!state.cleared[a.name];
+ if(final&&first)return "boss";
+ if(final&&!first&&r<.20)return "boss";
+ if(r<enemyR)return "enemy";
+ if(r<enemyR+chestR)return "chest";
+ if(r<enemyR+chestR+specialR)return "special";
+ return "none"}
+function runEvent(p){let exp=state.expedition;if(!exp||exp.partyIndex!==p)return;let a=AREAS[exp.area],team=state.chars.filter(c=>state.parties[p].includes(c.id));let ev=eventAt(exp),L=exp.log||[];
+ L.push(`【探索】第${exp.floor}階層・第${exp.segment}区間を調査中。`);
+ if(ev==="enemy"){let enemies=enemyParty(a,exp.floor,false);L.push(`⚠️ 敵パーティーが出現！`);let res=battle(team,enemies,a,exp.floor);L.push(...res.L)}
+ else if(ev==="boss"){let first=!state.cleared[a.name];L.push(first?`👑 最終階層に強大な気配……ボスが出現！`:`👑 最終階層：ボスの気配を察知！`);let enemies=enemyParty(a,exp.floor,true),res=battle(team,enemies,a,exp.floor);L.push(...res.L);if(res.win){state.cleared[a.name]=true;L.push(`🏆 ${a.name}を踏破！${first?' 初回攻略を達成した！':''}`)}}
+ else if(ev==="chest"){let r=rarity(),g=20+Math.floor(Math.random()*30)*(exp.floor+1);state.gold+=g;L.push(`🎁 宝箱を発見！ ${g} Gを獲得。${r>=3?` ★${r}装備の気配がある……`:""}`)}
+ else if(ev==="special"){state.stones=(state.stones||0)+1;L.push(`🪨 特殊イベント：古い石碑を発見した。碑文の一部が記録された。（発見 ${state.stones}件）`)}
+ else L.push(`周囲に異常はない。足跡と風の音だけが残っている。`);
+ exp.processed=(exp.processed||0)+1;exp.log=L;save()}
+function startExp(p,area){if(state.expedition)return alert("現在探索中のパーティーがあります。");if(!state.parties[p].length)return alert("パーティーを編成してください。");let a=AREAS[area],first=!state.cleared[a.name],total=first?a.clear:a.repeat;state.expedition={partyIndex:p,area,floor:1,segment:0,processed:0,started:Date.now(),endAt:Date.now()+total*1000,total,first,log:[`【第${p+1}パーティー】${a.name}へ出発。`,`300年前の隕石と魔素の痕跡を求め、探索を開始する。`,`${first?'初回攻略：最終階層ではボスが必ず出現します。':'周回探索：最終階層のボスは20%で出現します。'}`,`クリア予定時間：${fmt(total)}`]};save();tick()}
+function tick(){let e=state.expedition;if(!e)return;let a=AREAS[e.area],elapsed=Math.max(0,Math.floor((Date.now()-e.started)/1000)),unit=a.sec/5,totalSeg=a.floors*5,completed=Math.min(totalSeg,Math.floor(elapsed/unit));
+ while((e.processed||0)<completed){let idx=e.processed||0;e.floor=Math.floor(idx/5)+1;e.segment=(idx%5)+1;runEvent(e.partyIndex);}
+ if(Date.now()>=e.endAt){let p=e.partyIndex;e.floor=a.floors;e.segment=5;e.log.push(`🏠 第${p+1}パーティーが帰還しました！`);state.log=e.log.slice(-40);state.expedition=null;save();result(e.log);return}
+ save();if(document.getElementById("t-explore")?.classList.contains("active"))explore();setTimeout(tick,1000)}
+function fmt(sec){let s=Math.max(0,Math.floor(sec)),m=Math.floor(s/60);return m?`${m}分${String(s%60).padStart(2,"0")}秒`:`${s}秒`}
+function renderExpedition(){let e=state.expedition;if(!e)return;let a=AREAS[e.area];main.innerHTML=`<h2>探索中</h2><div class="card"><div class="row"><b id="expParty">第${e.partyIndex+1}パーティー</b><span class="badge" id="expArea">${a.name}</span></div><div id="expFloor">第${e.floor}階層　区間 ${Math.min(5,e.segment)}/5</div><div class="bar"><i id="expBar" style="width:0%"></i></div><div class="small" id="expNext"></div><p>帰還まで</p><div class="timer" id="expRemain">—</div><p class="small" id="expPlan"></p></div><div class="card"><div class="row"><b>探索ログ</b><button onclick="jumpLatest()">最新へ</button></div><div id="expLog" class="log"></div></div>`;updateExpeditionView()}
+function updateExpeditionView(){let e=state.expedition;if(!e)return;let a=AREAS[e.area],elapsed=Math.max(0,Math.floor((Date.now()-e.started)/1000)),remain=Math.max(0,Math.ceil((e.endAt-Date.now())/1000)),unit=a.sec/5;let floor=Math.min(a.floors,Math.floor((e.processed||0)/5)+1),seg=Math.min(5,(e.processed||0)%5+1);document.getElementById('expFloor').textContent=`第${floor}階層　区間 ${seg}/5`;document.getElementById('expBar').style.width=Math.min(100,elapsed/e.total*100)+'%';document.getElementById('expNext').textContent=`次の区間まで：約 ${Math.max(0,unit-(elapsed%unit))}秒`;document.getElementById('expRemain').textContent=fmt(remain);document.getElementById('expPlan').textContent=`${e.first?'初回攻略':'周回探索'} / クリア予定：${fmt(e.total)}`;let box=document.getElementById('expLog');if(box){let atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<24;box.innerHTML=e.log.slice(-60).map(esc).join('<br>');if(atBottom)box.scrollTop=box.scrollHeight}}
+function jumpLatest(){let box=document.getElementById('expLog');if(box)box.scrollTop=box.scrollHeight}
+function explore(){if(state.expedition){if(!document.getElementById('expLog'))renderExpedition();else updateExpeditionView();return}let x=`<h2>探索</h2><div class="card"><b>商業都市の外へ</b><p class="small">300年前、隕石とともに魔素が世界へ広がった。探索者たちは各地に残る痕跡を調べ、第七観測所につながる手掛かりを追う。</p><p class="small">1階層は5区間。各区間で敵・宝箱・特殊イベント・何もなしを抽選します。</p></div>`;AREAS.forEach((a,i)=>{let clear=!!state.cleared[a.name],t=clear?a.repeat:a.clear;x+=`<div class="card"><div class="row"><b>${a.name}</b><span class="badge">推奨Lv.${a.rec}</span></div><p class="small">${a.floors}階層 / 1階層 ${a.sec}秒 / ${clear?'周回':'初回'}</p><p class="small">敵：${a.m.join('・')} / 最終階層：${a.boss[0]}</p><p class="small">${clear?'周回ボス：20%':'初回最終階層：ボス確定'} / クリアまで ${fmt(t)}</p><div class="grid">${[0,1,2,3].map(p=>`<button class="primary" onclick="startExp(${p},${i})">第${p+1}PTで出発</button>`).join('')}</div></div>`});x+=`<div class="card"><b>発見記録</b><p class="small">古い石碑：${state.stones||0}件</p><p class="small">敵遭遇：探索地ごと15～35% / 宝箱：約5～10% / 特殊：約2～5%</p><p class="small">装備：★3 1.0% / ★4 0.18% / ★5 0.02%</p></div>`;main.innerHTML=x}
+function result(L){main.innerHTML=`<h2>探索結果</h2><div class=card><div class=log>${L.map(esc).join("<br>")}</div><button class=primary style="margin-top:10px" onclick="view('explore')">探索へ戻る</button></div>`}
+function home(){let exp=state.expedition;document.getElementById('goldTop').textContent=state.gold.toLocaleString()+' G';main.innerHTML=`<h2>商業都市</h2><div class="card"><div class="row"><div><b>探索院本部</b><div class="small">魔素の脅威が広がる中、探索者たちが集う都市。</div></div><span class="badge">${state.chars.length}/40人</span></div><p class="small">ここから探索者を登録し、各地の遺跡・森林・洞窟へ送り出します。</p></div><div class="grid"><div class="card"><b>🏛️ 探索院</b><p class="small">探索者登録・編成</p></div><div class="card"><b>⚒️ 武具店</b><p class="small">探索で得た装備を確認</p></div><div class="card"><b>🔨 鍛冶店</b><p class="small">ゴールドで装備を強化</p></div><div class="card"><b>📦 倉庫</b><p class="small">獲得品を管理</p></div></div><div class="card"><b>現在の探索</b><p class="small">${exp?`第${exp.partyIndex+1}PT「${AREAS[exp.area].name}」を探索中。残り ${fmt(Math.max(0,Math.ceil((exp.endAt-Date.now())/1000)))}。`:'現在探索中のパーティーはありません。'}</p></div><div class="card"><b>最近の記録</b><div class="log">${(state.log.length?state.log:['まだ記録はありません']).map(esc).join('<br>')}</div></div>`} 
+function record(){main.innerHTML=`<h2>探索者の記録</h2><div class="card"><b>世界の記録</b><p>300年前、空から隕石が落下した。</p><p>その後、隕石に伴って広がった魔素は、生命と環境に大きな変化をもたらした。</p><p>各地には現在も当時の痕跡が残り、探索者たちはその謎を追っている。</p></div><div class="card"><b>第七観測所</b><p class="small">かつてこの世界の生命を観測していた施設。現在は損壊し、その周辺では魔素の影響を受けた異常な生命が確認されている。</p></div><div class="card"><b>特殊発見</b><p>🪨 古い石碑：${state.stones||0}件</p><p class="small">石碑の碑文は、300年前の出来事や第七観測所の秘密につながる可能性がある。</p></div><div class="card"><b>最近の探索記録</b><div class="log">${(state.log.length?state.log:['まだ記録はありません']).map(esc).join('<br>')}</div></div>`}
+function nav(v){document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));document.getElementById("t-"+v)?.classList.add("active")}
+function view(v){nav(v);({home, char:chars, party, explore, record}[v]||home)();document.getElementById('goldTop').textContent=state.gold.toLocaleString()+' G'}
+load();view("home");if(state.expedition)setTimeout(tick,300);
+</script></body></html>
